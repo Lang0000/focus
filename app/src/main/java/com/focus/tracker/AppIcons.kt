@@ -23,10 +23,21 @@ import android.os.Build
 class AppIcons(private val ctx: Context) {
     private val full = HashMap<String, Icon?>()
     private val tray = HashMap<String, Icon?>()
+    private val accent = HashMap<String, Int?>()
 
     /** The launcher icon in colour. */
     fun full(pkg: String): Icon? = full.getOrPut(pkg) {
         runCatching { bitmapIcon(ctx.packageManager.getApplicationIcon(pkg), 48) }.getOrNull()
+    }
+
+    /** The icon's own colour (see [Accent]), or null for a black-and-white icon. */
+    fun accent(pkg: String): Int? = accent.getOrPut(pkg) {
+        runCatching {
+            val bmp = bitmap(ctx.packageManager.getApplicationIcon(pkg), 48)
+            val px = IntArray(bmp.width * bmp.height)
+            bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+            Accent.of(px)
+        }.getOrNull()
     }
 
     /** The one-colour status bar icon, or null when the app has none. */
@@ -46,13 +57,16 @@ class AppIcons(private val ctx: Context) {
     }
 
     /** [d] drawn [dp] wide; [zoom] > 1 crops the empty margin around a centred glyph. */
-    private fun bitmapIcon(d: Drawable, dp: Int, zoom: Float = 1f): Icon {
+    private fun bitmapIcon(d: Drawable, dp: Int, zoom: Float = 1f): Icon =
+        Icon.createWithBitmap(bitmap(d, dp, zoom))
+
+    private fun bitmap(d: Drawable, dp: Int, zoom: Float = 1f): Bitmap {
         val size = ctx.dp(dp)
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val pad = ((zoom - 1f) * size / 2f).toInt()
         d.setBounds(-pad, -pad, size + pad, size + pad)
         d.draw(Canvas(bmp))
-        return Icon.createWithBitmap(bmp)
+        return bmp
     }
 
     private companion object {

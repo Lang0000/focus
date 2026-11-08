@@ -6,7 +6,8 @@ import org.junit.Test
 class UsageClockTest {
     private val system = HashMap<String, Int>()
     private var asks = 0
-    private val clock = UsageClock(refreshMs = 30_000) { pkg -> asks++; system[pkg] ?: 0 }
+    private val clock = UsageClock(refreshMs = 30_000) { pkg -> asks++; AppUse((system[pkg] ?: 0) * 1000L, opens[pkg] ?: 0) }
+    private val opens = HashMap<String, Int>()
 
     @Test fun startsAtTheSystemsTimeForTheApp() {
         system["yt"] = 300
@@ -39,5 +40,12 @@ class UsageClockTest {
         clock.seconds("yt", 1_000)
         clock.pause()                                // left for an untracked app
         assertEquals(300, clock.seconds("yt", 20_000)) // read again, not 319
+    }
+
+    @Test fun opensComeFromTheSameReadAsTheTime() {
+        system["yt"] = 300; opens["yt"] = 4
+        clock.seconds("yt", 1_000)
+        assertEquals(4, clock.opens("yt"))
+        assertEquals(0, clock.opens("ig"))   // not read yet
     }
 }

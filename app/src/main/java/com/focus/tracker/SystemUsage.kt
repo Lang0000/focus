@@ -28,10 +28,10 @@ object SystemUsage {
         }
     }
 
-    /** Seconds in [pkg] today so far. */
-    fun today(c: Context, pkg: String, now: Long = System.currentTimeMillis()): Int {
+    /** [pkg] today so far. */
+    fun today(c: Context, pkg: String, now: Long = System.currentTimeMillis()): AppUse {
         val start = dayStart(0, now)
-        return Sessions.tally(events(c, start - LOOK_BACK_MS, now), start, now)[pkg]?.seconds ?: 0
+        return Sessions.tally(events(c, start - LOOK_BACK_MS, now), start, now)[pkg] ?: AppUse(0, 0)
     }
 
     private fun events(c: Context, from: Long, to: Long): List<UsageEvent> {

@@ -26,7 +26,7 @@ class Screen(
     private val overlay = Overlay(ctx, windowType, seconds) { pkg ->
         reels(pkg)?.let { Pill.badge(pkg, it.count, it.onPlayer) }
     }
-    private val nowBar = NowBar(ctx, seconds) { pkg -> reels(pkg)?.count }
+    private val nowBar = NowBar(ctx, seconds, opens = clock::opens) { pkg -> reels(pkg)?.count }
 
     fun show(pkg: String) {
         overlay.applyReset()

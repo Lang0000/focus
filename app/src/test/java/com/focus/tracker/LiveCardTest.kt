@@ -68,11 +68,21 @@ class LiveCardTest {
         assertNull(next(null, ig, 0, 0L, null).countLabel)
     }
 
-    // --- Colour --------------------------------------------------------------------
+    // --- The number beside the time -------------------------------------------
 
-    @Test fun cardTakesTheAppsColour() {
-        assertEquals(LiveCard.INSTAGRAM_PINK, next(null, ig, 0, 0L, 0).color)
-        assertEquals(LiveCard.YOUTUBE_RED, next(null, yt, 0, 0L, 0).color)
-        assertEquals(LiveCard.FOCUS_BLUE, next(null, "org.telegram.messenger", 0, 0L, null).color)
+    @Test fun feedCountIsShownWhereThereIsOne() {
+        val card = LiveCard.next(null, ig, 0, 0L, count = 7, opens = 3)
+        assertEquals("Reels" to 7, card.second)
+    }
+
+    @Test fun otherwiseTheTimesOpenedToday() {
+        val card = LiveCard.next(null, "org.telegram.messenger", 0, 0L, count = null, opens = 14)
+        assertEquals("Відкрито" to 14, card.second)
+    }
+
+    @Test fun anotherOpenIsANewCard() {
+        val a = LiveCard.next(null, "org.telegram.messenger", 600, 1_000_000L, count = null, opens = 2)
+        val b = LiveCard.next(a, "org.telegram.messenger", 601, 1_001_000L, count = null, opens = 3)
+        assertNotEquals(a, b)
     }
 }

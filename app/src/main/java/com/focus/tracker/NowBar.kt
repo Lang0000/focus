@@ -30,6 +30,8 @@ class NowBar(
     private val ctx: Context,
     /** Today's seconds in an app. */
     private val seconds: (String) -> Int,
+    /** Times an app was opened today. */
+    private val opens: (String) -> Int,
     private val count: (String) -> Int?,
 ) {
     private val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -46,6 +48,7 @@ class NowBar(
             secondsToday = seconds(pkg),
             nowMs = SystemClock.elapsedRealtime(),
             count = count(pkg),
+            opens = opens(pkg),
         )
         val allApps = liveForAllApps(ctx)
         if (next == shown && allApps == shownAllApps) return
@@ -76,16 +79,15 @@ class NowBar(
         )
         val style = Notification.MetricStyle()
             .addMetric(stopwatch(card.zeroMs, "Сьогодні"))
-        card.count?.let {
-            style.addMetric(Notification.Metric(Notification.Metric.FixedInt(it), card.countLabel ?: ""))
-        }
+        val (secondLabel, secondValue) = card.second
+        style.addMetric(Notification.Metric(Notification.Metric.FixedInt(secondValue), secondLabel))
         val b = Notification.Builder(ctx, CHANNEL)
             // Capsule and expanded card: the app's one-colour glyph (see AppIcons).
             .setSmallIcon(icons.tray(card.pkg) ?: icons.full(card.pkg) ?: Icon.createWithResource(ctx, R.drawable.ic_stat))
             // Now Bar (lock screen) prefers the large icon: the app in colour.
             .setLargeIcon(icons.full(card.pkg))
             .setContentTitle(label)
-            .setColor(card.color)
+            .setColor(icons.accent(card.pkg) ?: NEUTRAL)
             .setShowWhen(false)
             .setContentIntent(open)
             .setOngoing(true)
@@ -123,6 +125,9 @@ class NowBar(
 
     companion object {
         private const val CHANNEL = "live"
+
+        /** Card colour for an app whose icon is black and white (Threads, X). */
+        private const val NEUTRAL = 0xFF3A3A3C.toInt()
         private const val ID = 7
 
         /**
