@@ -23,4 +23,11 @@ object Format {
             else -> "$s с"
         }
     }
+
+    /** "1 відкриття", "3 відкриття", "5 відкриттів" (Ukrainian: both one and 2-4 take "відкриття"). */
+    fun opens(n: Int): String {
+        val teen = n % 100 in 11..14
+        val word = if (!teen && n % 10 in 1..4) "відкриття" else "відкриттів"
+        return "$n $word"
+    }
 }
