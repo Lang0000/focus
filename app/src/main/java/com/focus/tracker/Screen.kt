@@ -1,6 +1,7 @@
 package com.focus.tracker
 
 import android.content.Context
+import android.os.SystemClock
 
 /** What the Reels/Shorts counter knows about an app right now. */
 data class ReelCount(val count: Int, val onPlayer: Boolean)
@@ -20,10 +21,12 @@ class Screen(
     private val canDraw: () -> Boolean = { true },
     reels: (String) -> ReelCount? = { null },
 ) {
-    private val overlay = Overlay(ctx, windowType) { pkg ->
+    private val clock = UsageClock { pkg -> SystemUsage.today(ctx, pkg) }
+    private val seconds = { pkg: String -> clock.seconds(pkg, SystemClock.elapsedRealtime()) }
+    private val overlay = Overlay(ctx, windowType, seconds) { pkg ->
         reels(pkg)?.let { Pill.badge(pkg, it.count, it.onPlayer) }
     }
-    private val nowBar = NowBar(ctx) { pkg -> reels(pkg)?.count }
+    private val nowBar = NowBar(ctx, seconds) { pkg -> reels(pkg)?.count }
 
     fun show(pkg: String) {
         overlay.applyReset()
@@ -38,11 +41,13 @@ class Screen(
     }
 
     fun hide() {
+        clock.pause()
         overlay.hide()
         nowBar.hide()
     }
 
     fun remove() {
+        clock.pause()
         overlay.remove()
         nowBar.hide()
     }

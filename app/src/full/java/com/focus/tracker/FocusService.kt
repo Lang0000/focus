@@ -14,7 +14,8 @@ import android.view.inputmethod.InputMethodManager
 
 /**
  * The whole tracker. Once a second it asks which app is in front; if that app is
- * one the user picked, it adds a second to that app and shows the pill on top.
+ * one the user picked, it shows the pill on top (the time is the system's, see
+ * SystemUsage).
  * In Instagram / YouTube it also looks for the Reels / Shorts player, both on
  * that tick and on content events (so fast swipes are still counted).
  *
@@ -141,9 +142,8 @@ class FocusService : AccessibilityService() {
         (pkg == Store.INSTAGRAM || pkg == Store.YOUTUBE) &&
             Store.countReels(this) && pkg in Store.apps(this)
 
-    /** Credit [sec] seconds to [fg], and to the Reels/Shorts player when it is up. */
+    /** Credit [sec] seconds to the Reels/Shorts player when it is up in [fg]. */
     private fun track(fg: String, sec: Int) {
-        if (sec > 0) Store.addSeconds(this, fg, sec)
         if (!countsReels(fg)) { surface = Surface.NONE; return }
         scan(fg)
         if (sec == 0 || surfacePkg != fg) return

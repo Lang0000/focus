@@ -10,9 +10,9 @@ import java.util.Locale
 /**
  * All state lives in one SharedPreferences file, shared by the activity and the
  * tracker service (same process). Per-day stats are keyed by date, so a
- * new day starts at zero on its own with no reset job.
+ * new day starts at zero on its own with no reset job. Time in apps is not
+ * here: it comes from the system's usage log (SystemUsage).
  *
- *   t|<date>|<pkg>   seconds in that app
  *   reels|<date>     Instagram Reels counted
  *   shorts|<date>    YouTube Shorts counted
  *   reelsec|<date>   seconds on the Reels player
@@ -83,24 +83,6 @@ object Store {
     private fun inc(c: Context, key: String, by: Int = 1) {
         val p = prefs(c)
         p.edit().putInt(key, p.getInt(key, 0) + by).apply()
-    }
-
-    fun addSeconds(c: Context, pkg: String, s: Int = 1) = inc(c, "t|${today()}|$pkg", s)
-    fun seconds(c: Context, pkg: String, date: String = today()) =
-        prefs(c).getInt("t|$date|$pkg", 0)
-
-    /** Seconds per app on [date], biggest first. */
-    fun dayApps(c: Context, date: String = today()): List<Pair<String, Int>> {
-        val prefix = "t|$date|"
-        return prefs(c).all.mapNotNull { (k, v) ->
-            if (k.startsWith(prefix) && v is Int && v > 0) k.removePrefix(prefix) to v else null
-        }.sortedByDescending { it.second }
-    }
-
-    /** Seconds in the apps the user tracks on [date] (the dashboard total and the card's day stopwatch). */
-    fun dayTotal(c: Context, date: String = today()): Int {
-        val tracked = apps(c)
-        return dayApps(c, date).filter { it.first in tracked }.sumOf { it.second }
     }
 
     fun addReel(c: Context) = inc(c, "reels|${today()}")

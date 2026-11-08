@@ -28,7 +28,12 @@ import android.provider.Settings
  * The system runs the stopwatch, so the card is posted only when [LiveCard.next]
  * says it changed.
  */
-class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
+class NowBar(
+    private val ctx: Context,
+    /** Today's seconds in an app. */
+    private val seconds: (String) -> Int,
+    private val count: (String) -> Int?,
+) {
     private val nm = ctx.getSystemService(NotificationManager::class.java)
     private var shown: LiveCard? = null
     private var channelMade = false
@@ -38,7 +43,7 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
         if (Build.VERSION.SDK_INT < 37) return
         val next = LiveCard.next(
             shown, pkg,
-            secondsToday = Store.seconds(ctx, pkg),
+            secondsToday = seconds(pkg),
             nowMs = SystemClock.elapsedRealtime(),
             count = count(pkg),
         )

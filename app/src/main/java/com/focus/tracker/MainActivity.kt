@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
@@ -34,6 +35,12 @@ class MainActivity : Activity() {
     private val uk = Locale("uk", "UA")
     private val labelCache = HashMap<String, String>()
     private val iconCache = HashMap<String, android.graphics.drawable.Drawable?>()
+
+    /** The system's per-app time for the last 7 days, oldest first; re-read every [DAYS_FRESH_MS]. */
+    private var days: List<Map<String, AppUse>> = List(7) { emptyMap() }
+    private var daysReadAt = 0L
+    /** The day the dashboard shows: 6 is today, 0 is six days ago. */
+    private var pick = 6
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +92,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         Setup.start(this)
+        daysReadAt = 0L
         handler.post(refresher)
     }
 
@@ -105,17 +113,25 @@ class MainActivity : Activity() {
         val date = SimpleDateFormat("EEEE, d MMMM", uk).format(Calendar.getInstance().time)
         findViewById<TextView>(R.id.date).text = date.replaceFirstChar { it.titlecase(uk) }
 
+        val now = SystemClock.elapsedRealtime()
+        if (daysReadAt == 0L || now - daysReadAt >= DAYS_FRESH_MS) {
+            days = SystemUsage.days(this)
+            daysReadAt = now
+        }
+
         val selected = Store.apps(this)
-        val apps = Store.dayApps(this).filter { it.first in selected }
-        val total = apps.sumOf { it.second }
-        findViewById<TextView>(R.id.total).text = Format.words(total)
+        val apps = days[pick].filterKeys { it in selected }.toList().sortedByDescending { it.second.ms }
+        findViewById<TextView>(R.id.total).text = Format.words(apps.sumOf { it.second.seconds })
+        findViewById<TextView>(R.id.totalLabel).text = if (pick == 6) "Сьогодні у вибраних додатках" else
+            SimpleDateFormat("EEEE, d MMMM", uk).format(dayCal(pick).time).replaceFirstChar { it.titlecase(uk) }
 
-        findViewById<TextView>(R.id.reels).text = Store.reels(this).toString()
-        findViewById<TextView>(R.id.reelsTime).text = Format.words(Store.reelSec(this))
-        findViewById<TextView>(R.id.shorts).text = Store.shorts(this).toString()
-        findViewById<TextView>(R.id.shortsTime).text = Format.words(Store.shortSec(this))
+        val d = Store.day(6 - pick)
+        findViewById<TextView>(R.id.reels).text = Store.reels(this, d).toString()
+        findViewById<TextView>(R.id.reelsTime).text = Format.words(Store.reelSec(this, d))
+        findViewById<TextView>(R.id.shorts).text = Store.shorts(this, d).toString()
+        findViewById<TextView>(R.id.shortsTime).text = Format.words(Store.shortSec(this, d))
 
-        renderWeek()
+        renderWeek(selected)
         renderApps(apps, selected)
     }
 
@@ -139,12 +155,12 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.appInfo).visibility = if (step.appInfo) View.VISIBLE else View.GONE
     }
 
-    private fun renderWeek() {
+    /** Calendar on the day at bar [i] (6 = today). */
+    private fun dayCal(i: Int) = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -(6 - i)) }
+
+    private fun renderWeek(selected: Set<String>) {
         val week = findViewById<LinearLayout>(R.id.week)
-        val totals = (6 downTo 0).map { off ->
-            val d = Store.day(off)
-            Store.dayTotal(this, d)
-        }
+        val totals = days.map { day -> day.filterKeys { it in selected }.values.sumOf { it.seconds } }
         val max = (totals.maxOrNull() ?: 0).coerceAtLeast(60)
         val dayFmt = SimpleDateFormat("EE", uk)
         if (week.childCount != 7) {
@@ -164,33 +180,35 @@ class MainActivity : Activity() {
                 col.addView(lbl, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) })
+                col.setOnClickListener { pick = it.tag as Int; render() }
                 week.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
             }
         }
         val maxBar = dp(66)
         for (i in 0 until 7) {
             val col = week.getChildAt(i) as LinearLayout
+            col.tag = i
             val bar = col.getChildAt(0)
             val lbl = col.getChildAt(1) as TextView
-            val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -(6 - i)) }
-            lbl.text = dayFmt.format(cal.time)
+            lbl.text = dayFmt.format(dayCal(i).time)
+            lbl.setTextColor(getColor(if (i == pick) R.color.text else R.color.dim))
             val h = (maxBar * totals[i] / max).coerceAtLeast(dp(4))
             val lp = bar.layoutParams
             if (lp.height != h) { lp.height = h; bar.layoutParams = lp }
             bar.background = GradientDrawable().apply {
                 cornerRadius = dp(6).toFloat()
-                setColor(if (i == 6) getColor(R.color.accent) else Color.parseColor("#2E333C"))
+                setColor(if (i == pick) getColor(R.color.accent) else Color.parseColor("#2E333C"))
             }
         }
     }
 
-    private fun renderApps(apps: List<Pair<String, Int>>, selected: Set<String>) {
+    private fun renderApps(apps: List<Pair<String, AppUse>>, selected: Set<String>) {
         val list = findViewById<LinearLayout>(R.id.appList)
         list.removeAllViews()
         // Selected apps not used yet today still get a row, at zero.
         val shown = apps.map { it.first }.toSet()
         val rows = apps + selected.filter { it !in shown && installed(it) }
-            .sortedBy { label(it).lowercase() }.map { it to 0 }
+            .sortedBy { label(it).lowercase() }.map { it to AppUse(0, 0) }
         if (rows.isEmpty()) {
             list.addView(TextView(this).apply {
                 text = "Ще не вибрано жодного додатка"
@@ -200,14 +218,16 @@ class MainActivity : Activity() {
             })
             return
         }
-        val max = (rows.maxOfOrNull { it.second } ?: 0).coerceAtLeast(1)
-        for ((pkg, sec) in rows) list.addView(appRow(pkg, sec, max))
+        val max = (rows.maxOfOrNull { it.second.seconds } ?: 0).coerceAtLeast(1)
+        for ((pkg, use) in rows) list.addView(appRow(pkg, use, max))
     }
 
     private fun installed(pkg: String) =
         runCatching { packageManager.getApplicationInfo(pkg, 0); true }.getOrDefault(false)
 
-    private fun appRow(pkg: String, sec: Int, max: Int): View {
+    /** One app: name, time and opens that day, and a bar against the day's busiest app. */
+    private fun appRow(pkg: String, use: AppUse, max: Int): View {
+        val sec = use.seconds
         val icon = ImageView(this).apply {
             setImageDrawable(iconCache.getOrPut(pkg) {
                 runCatching { packageManager.getApplicationIcon(pkg) }.getOrNull()
@@ -221,7 +241,7 @@ class MainActivity : Activity() {
             ellipsize = TextUtils.TruncateAt.END
         }
         val time = TextView(this).apply {
-            text = if (sec > 0) Format.words(sec) else "—"
+            text = if (sec > 0) "${Format.words(sec)}  ·  ${use.opens}×" else "—"
             setTextColor(getColor(if (sec > 0) R.color.text else R.color.dim))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             fontFeatureSettings = "tnum"
@@ -260,5 +280,10 @@ class MainActivity : Activity() {
             addView(icon, LinearLayout.LayoutParams(dp(36), dp(36)).apply { rightMargin = dp(12) })
             addView(right, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
+    }
+
+    companion object {
+        /** How often the open dashboard re-reads the system's usage log. */
+        private const val DAYS_FRESH_MS = 30_000L
     }
 }

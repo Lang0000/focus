@@ -16,14 +16,14 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
-import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 
 /**
  * Lite build tracker: a foreground service that, once a second, reads the new
- * usage events to learn which app is in front, adds the seconds to it when it
- * is one the user picked, and shows the pill as an app overlay.
+ * usage events to learn which app is in front and, when it is one the user
+ * picked, shows the pill as an app overlay. The time itself is the system's
+ * (SystemUsage), so nothing is counted here.
  *
  * Uses usage access + "display over other apps" instead of an accessibility
  * service, so the APK is not blocked by Play Protect when sideloaded.
@@ -38,7 +38,6 @@ class UsageService : Service() {
 
     private val front = Front()
     private var readTo = 0L
-    private val clock = SecondClock()
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -59,7 +58,7 @@ class UsageService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         goForeground()
-        if (!Setup.usageAccess(this)) {
+        if (!SystemUsage.granted(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -117,12 +116,9 @@ class UsageService : Service() {
             power.isInteractive && !keyguard.isKeyguardLocked && it in Store.apps(this)
         }
         if (fg == null) {
-            clock.pause()
             screen.hide()
             return
         }
-        val sec = clock.tick(SystemClock.elapsedRealtime())
-        if (sec > 0) Store.addSeconds(this, fg, sec)
         screen.show(fg)
     }
 

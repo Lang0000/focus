@@ -25,6 +25,8 @@ import kotlin.math.abs
 class Overlay(
     private val ctx: Context,
     private val windowType: Int,
+    /** Today's seconds in an app. */
+    private val seconds: (String) -> Int,
     private val badge: (String) -> Badge? = { null },
 ) {
     private val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -59,7 +61,7 @@ class Overlay(
     fun update() {
         val pkg = pillPkg ?: return
         if (pill == null) return
-        pillTime?.text = Format.clock(Store.seconds(ctx, pkg))
+        pillTime?.text = Format.clock(seconds(pkg))
         val b = badge(pkg)
         val vis = if (b != null) View.VISIBLE else View.GONE
         pillSep?.visibility = vis
