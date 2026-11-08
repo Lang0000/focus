@@ -1,0 +1,56 @@
+package com.focus.tracker
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class LiveCardTest {
+    private val ig = Store.INSTAGRAM
+    private val yt = Store.YOUTUBE
+
+    @Test fun stopwatchStartsAtTodaysTotal() {
+        val card = LiveCard.next(null, ig, secondsToday = 600, nowMs = 1_000_000L, count = null)
+        assertEquals(400_000L, card.zeroMs) // 1_000_000 - 600 s
+    }
+
+    @Test fun sameAppNextSecondIsTheSameCardSoNothingIsReposted() {
+        val a = LiveCard.next(null, ig, 600, 1_000_000L, 3)
+        val b = LiveCard.next(a, ig, 601, 1_001_000L, 3)
+        assertEquals(a, b)
+    }
+
+    @Test fun aNewReelChangesTheCardButKeepsTheStopwatch() {
+        val a = LiveCard.next(null, ig, 600, 1_000_000L, 3)
+        val b = LiveCard.next(a, ig, 605, 1_005_000L, 4)
+        assertNotEquals(a, b)
+        assertEquals(a.zeroMs, b.zeroMs)
+        assertEquals(4, b.count)
+    }
+
+    @Test fun switchingAppsRestartsTheStopwatchAtThatAppsTotal() {
+        val a = LiveCard.next(null, ig, 600, 1_000_000L, 3)
+        val b = LiveCard.next(a, yt, 60, 1_010_000L, 0)
+        assertEquals(yt, b.pkg)
+        assertEquals(950_000L, b.zeroMs)
+    }
+
+    @Test fun stopwatchIsReanchoredWhenItDriftsFromTheStoredTime() {
+        // The tracker missed time (process frozen), so stored seconds lag the stopwatch.
+        val a = LiveCard.next(null, ig, 600, 1_000_000L, null)
+        val b = LiveCard.next(a, ig, 610, 1_060_000L, null)   // 60 s passed, only 10 counted
+        assertEquals(1_060_000L - 610_000L, b.zeroMs)
+    }
+
+    @Test fun midnightResetsTheStopwatch() {
+        val a = LiveCard.next(null, ig, 7200, 10_000_000L, null)
+        val b = LiveCard.next(a, ig, 1, 10_001_000L, null)    // new day: total back to 1 s
+        assertEquals(10_000_000L, b.zeroMs)
+    }
+
+    @Test fun countLabelNamesTheFeed() {
+        assertEquals("Reels", LiveCard.next(null, ig, 0, 0L, 1).countLabel)
+        assertEquals("Shorts", LiveCard.next(null, yt, 0, 0L, 1).countLabel)
+        assertNull(LiveCard.next(null, "org.telegram.messenger", 0, 0L, null).countLabel)
+    }
+}
