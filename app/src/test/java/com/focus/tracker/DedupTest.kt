@@ -44,4 +44,11 @@ class DedupTest {
         assertFalse(d.isNew("anna|sunset at the beach", day))  // same reel, now loaded
         assertTrue(d.isNew("anna|my new car review", day))     // her next reel
     }
+
+    @Test fun remembersTheLast80ItemsOnly() {
+        val d = Dedup()
+        for (i in 0..80) assertTrue(d.isNew("author$i|caption number $i", day))
+        assertFalse(d.isNew("author80|caption number 80", day)) // recent: still known
+        assertTrue(d.isNew("author0|caption number 0", day))    // 81 back: forgotten
+    }
 }
