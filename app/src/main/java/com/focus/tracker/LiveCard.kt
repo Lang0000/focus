@@ -30,13 +30,14 @@ data class LiveCard(
         const val DRIFT_MS = 3000L
 
         /**
-         * The card for [pkg] now. Keeps [prev]'s stopwatch while it is the same
-         * app and still agrees with [secondsToday]; otherwise starts it at the
-         * stored total (an app switch, missed time, or midnight's reset to 0).
+         * The card for [pkg] now. Keeps [prev]'s stopwatch while it still agrees
+         * with [secondsToday] to within [DRIFT_MS]; otherwise starts it at the
+         * stored total. That one rule covers an app switch (another app's total),
+         * missed time, and midnight's reset to 0.
          */
         fun next(prev: LiveCard?, pkg: String, secondsToday: Int, nowMs: Long, count: Int?): LiveCard {
             val anchor = nowMs - secondsToday * 1000L
-            val zero = if (prev != null && prev.pkg == pkg && abs(prev.zeroMs - anchor) <= DRIFT_MS) {
+            val zero = if (prev != null && abs(prev.zeroMs - anchor) <= DRIFT_MS) {
                 prev.zeroMs
             } else {
                 anchor

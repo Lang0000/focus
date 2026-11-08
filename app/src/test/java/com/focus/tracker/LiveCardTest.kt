@@ -53,4 +53,15 @@ class LiveCardTest {
         assertEquals("Shorts", LiveCard.next(null, yt, 0, 0L, 1).countLabel)
         assertNull(LiveCard.next(null, "org.telegram.messenger", 0, 0L, null).countLabel)
     }
+
+    @Test fun tickJitterDoesNotRepost() {
+        // Ticks land a few hundred ms late while stored time is whole seconds.
+        val a = LiveCard.next(null, ig, 600, 1_000_000L, null)
+        val b = LiveCard.next(a, ig, 601, 1_001_400L, null)
+        assertEquals(a, b)
+    }
+
+    @Test fun noCounterMeansNoLabelEvenOnInstagram() {
+        assertNull(LiveCard.next(null, ig, 0, 0L, null).countLabel)
+    }
 }
