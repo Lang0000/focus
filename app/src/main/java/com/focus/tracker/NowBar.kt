@@ -36,6 +36,8 @@ class NowBar(
 ) {
     private val nm = ctx.getSystemService(NotificationManager::class.java)
     private var shown: LiveCard? = null
+    /** Whether [shown] was posted with One UI's all-apps option on (no automation extra). */
+    private var shownAllApps = false
     private var channelMade = false
     private val iconCache = HashMap<String, Icon?>()
 
@@ -47,8 +49,10 @@ class NowBar(
             nowMs = SystemClock.elapsedRealtime(),
             count = count(pkg),
         )
-        if (next == shown) return
+        val allApps = liveForAllApps(ctx)
+        if (next == shown && allApps == shownAllApps) return
         shown = next
+        shownAllApps = allApps
         runCatching { nm.notify(ID, build(next)) }
     }
 
@@ -89,7 +93,7 @@ class NowBar(
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setRequestPromotedOngoing(true)
             .setStyle(style.setCriticalMetric(0))
-        if (!liveForAllApps(ctx)) b.addExtras(Bundle().apply { putBoolean(SAMSUNG_AUTOMATION, true) })
+        if (!shownAllApps) b.addExtras(Bundle().apply { putBoolean(SAMSUNG_AUTOMATION, true) })
         return b.build()
     }
 
@@ -136,8 +140,12 @@ class NowBar(
          * that already passes Android's promotion checks through. Do NOT also set
          * android.ongoingActivityNoti.style: that takes Samsung's private-card
          * path and cancels it. Side effect seen: the expanded capsule's header
-         * reads "Gemini Intelligence" instead of the app name: in SystemUI this is
-         * the path for Gemini's automations. Used only while [liveForAllApps] is off.
+         * reads "Gemini Intelligence" instead of the app name, and the icon and
+         * metrics sit off-centre: the framework's Notification.Builder, on seeing
+         * this extra, writes a fixed string (framework-res "Gemini Intelligence")
+         * into the header and skips the Live Update header and icon margins.
+         * Nothing in the notification can undo that, so the extra is used only
+         * while [liveForAllApps] is off.
          * Source: github.com/tigerduck-app/tigerduck-app-android/pull/126
          */
         private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
@@ -150,6 +158,9 @@ class NowBar(
          * False when the key is missing or unreadable (non-Samsung phones).
          */
         private const val SAMSUNG_ALL_APPS_LIVE = "enable_notification_nowbar_test"
+
+        /** One UI exposes the option (Samsung only); the key is @Readable in Settings.Secure. */
+        private fun samsung() = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
 
         fun liveForAllApps(c: Context): Boolean = runCatching {
             Settings.Secure.getInt(c.contentResolver, SAMSUNG_ALL_APPS_LIVE, 0) == 1
@@ -175,6 +186,18 @@ class NowBar(
                     Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS)
                         .putExtra(Settings.EXTRA_APP_PACKAGE, c.packageName),
                     app,
+                ),
+            )
+            if (samsung() && !liveForAllApps(c)) return Step(
+                title = "Прибери «Gemini Intelligence»",
+                body = "One UI пускає в капсулу лише свої програми, тому зараз картка Focus підписана як Gemini. " +
+                    "Увімкни в «Параметрах розробника» пункт «Живі сповіщення для всіх програм» — " +
+                    "і в картці буде назва програми.\n\n" +
+                    "Немає «Параметрів розробника»? Налаштування → Про телефон → Відомості про ПЗ → " +
+                    "сім разів торкнись «Номер збірки».",
+                intents = listOf(
+                    Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                    Intent(Settings.ACTION_DEVICE_INFO_SETTINGS),
                 ),
             )
             return null
