@@ -83,7 +83,7 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Today -->
+        <!-- The day's time: its own field -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -96,7 +96,7 @@
                 android:id="@+id/totalLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Сьогодні у вибраних додатках"
+                android:text="Сьогодні"
                 android:textColor="@color/dim"
                 android:textSize="13sp" />
 
@@ -104,101 +104,21 @@
                 android:id="@+id/total"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:fontFeatureSettings="tnum"
                 android:textColor="@color/text"
                 android:textSize="40sp"
                 android:fontFamily="sans-serif-medium" />
 
-            <!-- 7-day bars -->
-            <LinearLayout
-                android:id="@+id/week"
-                android:layout_width="match_parent"
-                android:layout_height="92dp"
-                android:layout_marginTop="14dp"
-                android:orientation="horizontal" />
+            <TextView
+                android:id="@+id/totalSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/dim"
+                android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Reels / Shorts (full build only) -->
-        <LinearLayout
-            android:id="@+id/reelsRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
-                android:layout_weight="1"
-                android:background="@drawable/card"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Reels"
-                    android:textColor="@color/reels"
-                    android:textSize="13sp"
-                    android:fontFamily="sans-serif-medium" />
-
-                <TextView
-                    android:id="@+id/reels"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:fontFeatureSettings="tnum"
-                    android:textColor="@color/text"
-                    android:textSize="30sp"
-                    android:fontFamily="sans-serif-medium" />
-
-                <TextView
-                    android:id="@+id/reelsTime"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/dim"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:background="@drawable/card"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Shorts"
-                    android:textColor="@color/shorts"
-                    android:textSize="13sp"
-                    android:fontFamily="sans-serif-medium" />
-
-                <TextView
-                    android:id="@+id/shorts"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:fontFeatureSettings="tnum"
-                    android:textColor="@color/text"
-                    android:textSize="30sp"
-                    android:fontFamily="sans-serif-medium" />
-
-                <TextView
-                    android:id="@+id/shortsTime"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/dim"
-                    android:textSize="13sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Per app -->
+        <!-- Week: each bar split by app colour; tap a day -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -210,6 +130,40 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Тиждень"
+                android:textColor="@color/dim"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:id="@+id/week"
+                android:layout_width="match_parent"
+                android:layout_height="140dp"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:id="@+id/legend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="4dp"
+                android:textColor="@color/dim"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- The day's apps, from the system's activity -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/card"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                android:id="@+id/appsLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="Додатки"
                 android:textColor="@color/dim"
                 android:textSize="13sp" />
@@ -218,20 +172,8 @@
                 android:id="@+id/appList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:orientation="vertical" />
-
-            <TextView
-                android:id="@+id/pick"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/button"
-                android:gravity="center"
-                android:text="Вибрати додатки"
-                android:textColor="@color/text"
-                android:textSize="15sp"
-                android:fontFamily="sans-serif-medium" />
         </LinearLayout>
 
         <!-- Settings -->
@@ -268,6 +210,15 @@
                 android:layout_height="52dp"
                 android:text="Рахувати Reels і Shorts"
                 android:textColor="@color/text"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/pick"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:gravity="center_vertical"
+                android:text="Додатки з таймером"
+                android:textColor="@color/accent"
                 android:textSize="15sp" />
 
             <TextView
