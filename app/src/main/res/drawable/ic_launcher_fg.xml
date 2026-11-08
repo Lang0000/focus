@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- pill -->
+    <path android:fillColor="#F2F3F5"
+        android:pathData="M34,44h40a10,10 0,0 1,0 20h-40a10,10 0,0 1,0 -20z" />
+    <!-- dot -->
+    <path android:fillColor="#8FA8FF"
+        android:pathData="M40,54m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+    <!-- time bars -->
+    <path android:fillColor="#14161B"
+        android:pathData="M51,51h22a3,3 0,0 1,0 6h-22a3,3 0,0 1,0 -6z" />
+</vector>
