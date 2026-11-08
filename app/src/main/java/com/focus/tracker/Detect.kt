@@ -18,79 +18,76 @@ class Detected(val key: String?)
 
 object Detect {
     private const val MAX_NODES = 3000
+    private const val CAPTION_CHARS = 48
+    private const val MIN_SHORT_TEXT = 16
+    private val SHORT_CHROME = listOf("Video Progress", "Tap to watch live", "Go to channel")
 
     fun reel(root: AccessibilityNodeInfo): Detected? {
         var chrome = false
         var author: String? = null
         var caption: String? = null
-        val queue = ArrayDeque<AccessibilityNodeInfo>()
-        queue.add(root)
-        var visited = 0
-        while (queue.isNotEmpty() && visited < MAX_NODES) {
-            val node = queue.removeFirst()
-            visited++
-            node.viewIdResourceName?.let { id ->
-                when {
-                    id.endsWith("reel_viewer_root") -> return null // stories
-                    id.endsWith("clips_ufi_component") ->
-                        if (node.isVisibleToUser) chrome = true
-                    id.endsWith("clips_author_username") ->
-                        if (node.isVisibleToUser) {
-                            chrome = true
-                            if (author == null) author = text(node)
-                        }
-                    id.endsWith("clips_captions_component") ->
-                        if (node.isVisibleToUser) {
-                            chrome = true
-                            if (caption == null) caption = text(node)
-                        }
-                }
+        val stories = walk(root) { node, id ->
+            if (id.endsWith("reel_viewer_root")) return@walk true // stories, never reels
+            if (!node.isVisibleToUser) return@walk false
+            when {
+                id.endsWith("clips_ufi_component") -> chrome = true
+                id.endsWith("clips_author_username") -> { chrome = true; author = author ?: text(node) }
+                id.endsWith("clips_captions_component") -> { chrome = true; caption = caption ?: text(node) }
             }
-            for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
+            false
         }
-        if (!chrome) return null
-        val key = buildString {
-            author?.trim()?.let { append(it) }
-            append('|')
-            caption?.trim()?.take(48)?.let { append(it) }
-        }.trim('|').ifBlank { null }
-        return Detected(key)
+        if (stories || !chrome) return null
+        return Detected(reelKey(author, caption))
     }
 
     fun short(root: AccessibilityNodeInfo): Detected? {
         var recycler: AccessibilityNodeInfo? = null
         var content: AccessibilityNodeInfo? = null
+        walk(root) { node, id ->
+            if (node.isVisibleToUser) when {
+                id.endsWith("reel_recycler") -> recycler = recycler ?: node
+                id.endsWith("reel_player_page_content") -> content = content ?: node
+            }
+            false
+        }
+        val player = recycler ?: return null
+        val raw = StringBuilder().also { collectText(content ?: player, it, 0) }
+        return Detected(shortKey(raw.toString()))
+    }
+
+    /** Identity of a reel: author + the start of its caption. Null until either has loaded. */
+    fun reelKey(author: String?, caption: String?): String? = buildString {
+        author?.trim()?.let { append(it) }
+        append('|')
+        caption?.trim()?.take(CAPTION_CHARS)?.let { append(it) }
+    }.trim('|').ifBlank { null }
+
+    /** Identity of a short: its on-screen text without YouTube's fixed labels. Null until loaded. */
+    fun shortKey(raw: String): String? {
+        if (raw.contains("PostPostPostlike")) return null // a community post, not a Short
+        val s = SHORT_CHROME.fold(raw) { acc, label -> acc.replace(label, "") }.trim()
+        return s.takeIf { it.length >= MIN_SHORT_TEXT }
+    }
+
+    /**
+     * Breadth-first over [root], calling [visit] for every node with a view id.
+     * Stops early, returning true, as soon as [visit] returns true.
+     */
+    private inline fun walk(
+        root: AccessibilityNodeInfo,
+        visit: (AccessibilityNodeInfo, String) -> Boolean
+    ): Boolean {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
         while (queue.isNotEmpty() && visited < MAX_NODES) {
             val node = queue.removeFirst()
             visited++
-            node.viewIdResourceName?.let { id ->
-                when {
-                    id.endsWith("reel_recycler") ->
-                        if (recycler == null && node.isVisibleToUser) recycler = node
-                    id.endsWith("reel_player_page_content") ->
-                        if (content == null && node.isVisibleToUser) content = node
-                }
-            }
+            val id = node.viewIdResourceName
+            if (id != null && visit(node, id)) return true
             for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
         }
-        val player = recycler ?: return null
-        return Detected(shortKey(content ?: player))
-    }
-
-    private fun shortKey(node: AccessibilityNodeInfo): String? {
-        val raw = StringBuilder()
-        collectText(node, raw, 0)
-        val s = raw.toString()
-            .replace("Video Progress", "")
-            .replace("Tap to watch live", "")
-            .replace("Go to channel", "")
-            .trim()
-        if (s.contains("PostPostPostlike")) return null
-        if (s.length <= 15) return null // not loaded yet
-        return s
+        return false
     }
 
     private fun collectText(node: AccessibilityNodeInfo, out: StringBuilder, depth: Int) {
@@ -117,18 +114,26 @@ class Dedup {
     /** True when [key] is a new item that should be counted. */
     fun isNew(key: String, today: String): Boolean {
         if (date != today) { date = today; recent.clear(); lastKey = null }
-        lastKey?.let { if (overlap(key, it) >= 0.9f) { lastKey = key; return false } }
+        lastKey?.let { if (overlap(key, it) >= SAME) { lastKey = key; return false } }
         lastKey = key
-        if (recent.any { overlap(key, it) >= 0.9f }) return false
+        if (recent.any { overlap(key, it) >= SAME }) return false
         recent.addFirst(key)
-        while (recent.size > 80) recent.removeLast()
+        while (recent.size > MEMORY) recent.removeLast()
         return true
     }
 
+    private fun words(s: String) =
+        s.lowercase(Locale.ROOT).split(' ', '|').filterTo(HashSet()) { it.isNotBlank() }
+
     private fun overlap(a: String, b: String): Float {
-        val wa = a.lowercase(Locale.ROOT).split(' ', '|').filterTo(HashSet()) { it.isNotBlank() }
-        val wb = b.lowercase(Locale.ROOT).split(' ', '|').filterTo(HashSet()) { it.isNotBlank() }
+        val wa = words(a)
+        val wb = words(b)
         if (wa.isEmpty() || wb.isEmpty()) return if (a == b) 1f else 0f
         return wa.count { it in wb }.toFloat() / minOf(wa.size, wb.size)
+    }
+
+    private companion object {
+        const val SAME = 0.9f
+        const val MEMORY = 80
     }
 }

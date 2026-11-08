@@ -98,34 +98,11 @@ object Store {
 
     fun addReel(c: Context) = inc(c, "reels|${today()}")
     fun addShort(c: Context) = inc(c, "shorts|${today()}")
-    fun addReelSec(c: Context) = inc(c, "reelsec|${today()}")
-    fun addShortSec(c: Context) = inc(c, "shortsec|${today()}")
+    fun addReelSec(c: Context, s: Int = 1) = inc(c, "reelsec|${today()}", s)
+    fun addShortSec(c: Context, s: Int = 1) = inc(c, "shortsec|${today()}", s)
 
     fun reels(c: Context, date: String = today()) = prefs(c).getInt("reels|$date", 0)
     fun shorts(c: Context, date: String = today()) = prefs(c).getInt("shorts|$date", 0)
     fun reelSec(c: Context, date: String = today()) = prefs(c).getInt("reelsec|$date", 0)
     fun shortSec(c: Context, date: String = today()) = prefs(c).getInt("shortsec|$date", 0)
-
-    // --- Formatting -----------------------------------------------------------
-
-    /** Clock style for the pill: 4:07, 1:04:07. */
-    fun clock(sec: Int): String {
-        val h = sec / 3600
-        val m = (sec % 3600) / 60
-        val s = sec % 60
-        return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s)
-        else String.format(Locale.US, "%d:%02d", m, s)
-    }
-
-    /** Words for the dashboard: 1 год 5 хв, 12 хв 3 с, 40 с. */
-    fun words(sec: Int): String {
-        val h = sec / 3600
-        val m = (sec % 3600) / 60
-        val s = sec % 60
-        return when {
-            h > 0 -> "$h год $m хв"
-            m > 0 -> "$m хв $s с"
-            else -> "$s с"
-        }
-    }
 }

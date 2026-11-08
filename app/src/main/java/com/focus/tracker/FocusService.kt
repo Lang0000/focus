@@ -11,6 +11,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -111,7 +112,7 @@ class FocusService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOWS_CHANGED ->
                 handler.post { runCatching { refreshPill() } }
         }
-        if ((pkg == Store.INSTAGRAM || pkg == Store.YOUTUBE) && Store.countReels(this)) {
+        if (pkg != null && countsReels(pkg)) {
             val now = System.currentTimeMillis()
             if (now - lastScanAt >= 250L) {
                 lastScanAt = now
@@ -140,32 +141,49 @@ class FocusService : AccessibilityService() {
     // --- Ticker ---------------------------------------------------------------
 
     private var seenResets = -1
+    private val clock = SecondClock()
 
     private fun tick() {
-        val resets = Store.pillResets(this)
-        if (seenResets != resets) {
-            if (seenResets != -1) removePill()
-            seenResets = resets
-        }
-        if (!counting()) { hidePill(); return }
-        val fg = foreground()
-        if (fg == null || fg !in Store.apps(this)) {
+        applyPillReset()
+        val fg = trackedForeground()
+        if (fg == null) {
+            clock.pause()
             surface = Surface.NONE
             hidePill()
             return
         }
-        Store.addSeconds(this, fg)
-        if ((fg == Store.INSTAGRAM || fg == Store.YOUTUBE) && Store.countReels(this)) {
-            scan(fg)
-            if (surfacePkg == fg) when (surface) {
-                Surface.REEL -> Store.addReelSec(this)
-                Surface.SHORT -> Store.addShortSec(this)
-                Surface.NONE -> {}
-            }
-        } else {
-            surface = Surface.NONE
-        }
+        track(fg, clock.tick(SystemClock.elapsedRealtime()))
         if (Store.overlayOn(this)) showPill(fg) else hidePill()
+    }
+
+    /** The app in front, when it is one we time and the phone is in use. */
+    private fun trackedForeground(): String? =
+        if (!counting()) null else foreground()?.takeIf { it in Store.apps(this) }
+
+    /** Reels/Shorts are counted only in Instagram/YouTube, only when that app is timed. */
+    private fun countsReels(pkg: String) =
+        (pkg == Store.INSTAGRAM || pkg == Store.YOUTUBE) &&
+            Store.countReels(this) && pkg in Store.apps(this)
+
+    /** Credit [sec] seconds to [fg], and to the Reels/Shorts player when it is up. */
+    private fun track(fg: String, sec: Int) {
+        if (sec > 0) Store.addSeconds(this, fg, sec)
+        if (!countsReels(fg)) { surface = Surface.NONE; return }
+        scan(fg)
+        if (sec == 0 || surfacePkg != fg) return
+        when (surface) {
+            Surface.REEL -> Store.addReelSec(this, sec)
+            Surface.SHORT -> Store.addShortSec(this, sec)
+            Surface.NONE -> {}
+        }
+    }
+
+    /** The user asked to put the pill back: drop it so it is rebuilt in the default spot. */
+    private fun applyPillReset() {
+        val resets = Store.pillResets(this)
+        if (seenResets == resets) return
+        if (seenResets != -1) removePill()
+        seenResets = resets
     }
 
     /** Look for the Reels / Shorts player in [pkg]'s window and count a new item. */
@@ -188,10 +206,8 @@ class FocusService : AccessibilityService() {
     }
 
     private fun refreshPill() {
-        if (pill == null && !Store.overlayOn(this)) return
-        val fg = foreground()
-        if (counting() && fg != null && fg in Store.apps(this) && Store.overlayOn(this)) showPill(fg)
-        else hidePill()
+        val fg = if (Store.overlayOn(this)) trackedForeground() else null
+        if (fg != null) showPill(fg) else hidePill()
     }
 
     // --- Pill -----------------------------------------------------------------
@@ -218,7 +234,7 @@ class FocusService : AccessibilityService() {
     private fun updatePillContent() {
         val pkg = pillPkg ?: return
         if (pill == null) return
-        pillTime?.text = Store.clock(Store.seconds(this, pkg))
+        pillTime?.text = Format.clock(Store.seconds(this, pkg))
         val count = when {
             !Store.countReels(this) -> -1
             pkg == Store.INSTAGRAM -> Store.reels(this)

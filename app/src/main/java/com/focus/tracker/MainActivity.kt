@@ -106,12 +106,12 @@ class MainActivity : Activity() {
         val selected = Store.apps(this)
         val apps = Store.dayApps(this).filter { it.first in selected }
         val total = apps.sumOf { it.second }
-        findViewById<TextView>(R.id.total).text = Store.words(total)
+        findViewById<TextView>(R.id.total).text = Format.words(total)
 
         findViewById<TextView>(R.id.reels).text = Store.reels(this).toString()
-        findViewById<TextView>(R.id.reelsTime).text = Store.words(Store.reelSec(this))
+        findViewById<TextView>(R.id.reelsTime).text = Format.words(Store.reelSec(this))
         findViewById<TextView>(R.id.shorts).text = Store.shorts(this).toString()
-        findViewById<TextView>(R.id.shortsTime).text = Store.words(Store.shortSec(this))
+        findViewById<TextView>(R.id.shortsTime).text = Format.words(Store.shortSec(this))
 
         renderWeek(selected)
         renderApps(apps, selected)
@@ -199,7 +199,7 @@ class MainActivity : Activity() {
             ellipsize = TextUtils.TruncateAt.END
         }
         val time = TextView(this).apply {
-            text = if (sec > 0) Store.words(sec) else "—"
+            text = if (sec > 0) Format.words(sec) else "—"
             setTextColor(getColor(if (sec > 0) R.color.text else R.color.dim))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             fontFeatureSettings = "tnum"
