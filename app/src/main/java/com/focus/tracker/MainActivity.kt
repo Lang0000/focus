@@ -88,8 +88,6 @@ class MainActivity : Activity() {
         return false
     }
 
-    private fun dp(v: Int): Int =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
     private fun label(pkg: String): String = labelCache.getOrPut(pkg) {
         runCatching {

@@ -28,8 +28,6 @@ class AppsActivity : Activity() {
     private val selected = HashSet<String>()
     private lateinit var adapter: Adapter
 
-    private fun dp(v: Int): Int =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -212,8 +212,6 @@ class FocusService : AccessibilityService() {
 
     // --- Pill -----------------------------------------------------------------
 
-    private fun dp(v: Int): Int =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
     private fun showPill(pkg: String) {
         if (pill == null) buildPill()
