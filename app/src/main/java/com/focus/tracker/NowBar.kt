@@ -9,12 +9,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
 
 /**
- * The app in front as an Android Live Update, which Samsung's One UI 9 shows in
- * the Now Bar and as a chip in the status bar.
+ * The app in front as an Android Live Update, which Samsung's One UI 9 shows as
+ * a capsule in the status bar (tap: it expands into the card) and in the shade.
  *
  * The card uses Android 17's MetricStyle: a stopwatch for today's time in the
  * app (the status bar chip shows it) and the Reels/Shorts count. Older Android
@@ -80,6 +81,7 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setRequestPromotedOngoing(true)
             .setStyle(style.setCriticalMetric(0))
+            .addExtras(Bundle().apply { putBoolean(SAMSUNG_AUTOMATION, true) })
             .build()
     }
 
@@ -99,6 +101,19 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
     companion object {
         private const val CHANNEL = "live"
         private const val ID = 7
+
+        /**
+         * One UI keeps its own allowlist for the status bar capsule and ignores a
+         * plain promoted notification (on SM-S928B / One UI 9 the card reached the
+         * shade, but SystemUI had isOngoingActivity=false and no capsule). This
+         * undocumented extra, from decompiled One UI SystemUI, lets a notification
+         * that already passes Android's promotion checks through. Do NOT also set
+         * android.ongoingActivityNoti.style: that takes Samsung's private-card
+         * path and cancels it. Side effect seen: the expanded capsule's header
+         * reads "Gemini Intelligence" instead of the app name. Ignored elsewhere.
+         * Source: github.com/tigerduck-app/tigerduck-app-android/pull/126
+         */
+        private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
         val SUPPORTED = Build.VERSION.SDK_INT >= 37
 
         /** What the user still has to allow for the card to reach the Now Bar, if anything. */
