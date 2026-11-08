@@ -9,10 +9,8 @@ class LiveCardTest {
     private val ig = Store.INSTAGRAM
     private val yt = Store.YOUTUBE
 
-    /** The card after a tick; [total] defaults to the app's own time (only one app used). */
-    private fun next(
-        prev: LiveCard?, pkg: String, app: Int, now: Long, count: Int?, total: Int = app,
-    ) = LiveCard.next(prev, pkg, secondsToday = app, totalToday = total, nowMs = now, count = count)
+    private fun next(prev: LiveCard?, pkg: String, app: Int, now: Long, count: Int?) =
+        LiveCard.next(prev, pkg, secondsToday = app, nowMs = now, count = count)
 
     @Test fun stopwatchStartsAtTodaysTotal() {
         val card = next(null, ig, app = 600, now = 1_000_000L, count = null)
@@ -35,7 +33,7 @@ class LiveCardTest {
 
     @Test fun switchingAppsRestartsTheStopwatchAtThatAppsTotal() {
         val a = next(null, ig, 600, 1_000_000L, 3)
-        val b = next(a, yt, 60, 1_010_000L, 0, total = 660)
+        val b = next(a, yt, 60, 1_010_000L, 0)
         assertEquals(yt, b.pkg)
         assertEquals(950_000L, b.zeroMs)
     }
@@ -68,27 +66,6 @@ class LiveCardTest {
 
     @Test fun noCounterMeansNoLabelEvenOnInstagram() {
         assertNull(next(null, ig, 0, 0L, null).countLabel)
-    }
-
-    // --- Day total ----------------------------------------------------------------
-
-    @Test fun dayTotalHasItsOwnStopwatch() {
-        val card = next(null, yt, app = 60, now = 1_000_000L, count = 0, total = 900)
-        assertEquals(940_000L, card.zeroMs)
-        assertEquals(100_000L, card.totalZeroMs) // 1_000_000 - 900 s
-    }
-
-    @Test fun switchingAppsKeepsTheDayTotalRunning() {
-        val a = next(null, ig, 600, 1_000_000L, 3, total = 900)
-        val b = next(a, yt, 60, 1_010_400L, 0, total = 911)   // ~10 s later, tick a bit late
-        assertEquals(a.totalZeroMs, b.totalZeroMs)            // the day total's own anchor, not the app's
-    }
-
-    @Test fun dayTotalIsReanchoredOnItsOwnDrift() {
-        val a = next(null, ig, 600, 1_000_000L, null, total = 600)
-        val b = next(a, ig, 660, 1_060_000L, null, total = 610) // total lost 50 s elsewhere
-        assertEquals(a.zeroMs, b.zeroMs)
-        assertEquals(1_060_000L - 610_000L, b.totalZeroMs)
     }
 
     // --- Colour --------------------------------------------------------------------

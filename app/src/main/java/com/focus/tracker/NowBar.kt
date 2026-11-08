@@ -39,7 +39,6 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
         val next = LiveCard.next(
             shown, pkg,
             secondsToday = Store.seconds(ctx, pkg),
-            totalToday = Store.dayTotal(ctx),
             nowMs = SystemClock.elapsedRealtime(),
             count = count(pkg),
         )
@@ -73,7 +72,6 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
         card.count?.let {
             style.addMetric(Notification.Metric(Notification.Metric.FixedInt(it), card.countLabel ?: ""))
         }
-        style.addMetric(stopwatch(card.totalZeroMs, "Усього за день"))
         val b = Notification.Builder(ctx, CHANNEL)
             .setSmallIcon(appIcon(card.pkg) ?: Icon.createWithResource(ctx, R.drawable.ic_stat))
             .setContentTitle(label)

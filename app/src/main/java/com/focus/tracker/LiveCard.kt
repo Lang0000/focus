@@ -3,19 +3,18 @@ package com.focus.tracker
 import kotlin.math.abs
 
 /**
- * What the live card shows: the app in front, two stopwatches the system runs
- * on its own — today's time in this app and today's time in all tracked apps —
- * and the Reels/Shorts count where the app has one.
+ * What the live card shows: the app in front, today's time in it as a
+ * stopwatch the system runs on its own, and the Reels/Shorts count where the
+ * app has one.
  *
- * Each stopwatch is stored as the elapsedRealtime at which it would have read
- * 0:00 ([zeroMs], [totalZeroMs]). Because the system ticks them, the card only
- * needs reposting when the card itself changes — a new app, a new count, or a
- * re-anchored stopwatch — never once a second.
+ * The stopwatch is stored as the elapsedRealtime at which it would have read
+ * 0:00 ([zeroMs]). Because the system ticks it, the card only needs reposting
+ * when the card itself changes — a new app, a new count, or a re-anchored
+ * stopwatch — never once a second.
  */
 data class LiveCard(
     val pkg: String,
     val zeroMs: Long,
-    val totalZeroMs: Long,
     /** Reels/Shorts counted today; null for an app without a counter. */
     val count: Int?,
 ) {
@@ -45,11 +44,10 @@ data class LiveCard(
 
         /** The card for [pkg] now, keeping [prev]'s stopwatches where they still agree. */
         fun next(
-            prev: LiveCard?, pkg: String, secondsToday: Int, totalToday: Int, nowMs: Long, count: Int?,
+            prev: LiveCard?, pkg: String, secondsToday: Int, nowMs: Long, count: Int?,
         ): LiveCard = LiveCard(
             pkg = pkg,
             zeroMs = anchor(prev?.zeroMs, secondsToday, nowMs),
-            totalZeroMs = anchor(prev?.totalZeroMs, totalToday, nowMs),
             count = count,
         )
 
