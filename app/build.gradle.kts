@@ -11,8 +11,21 @@ android {
         applicationId = "com.focus.tracker"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    // lite: time + pill via usage access. No accessibility service, so Play
+    //       Protect lets the sideloaded APK install. The default download.
+    // full: adds Reels/Shorts counting, which needs an accessibility service;
+    //       Play Protect blocks sideloading it (install with adb instead).
+    flavorDimensions += "mode"
+    productFlavors {
+        create("lite") { dimension = "mode" }
+        create("full") {
+            dimension = "mode"
+            versionNameSuffix = "-full"
+        }
     }
 
     buildTypes {

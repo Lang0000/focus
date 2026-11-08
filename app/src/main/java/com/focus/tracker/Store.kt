@@ -9,7 +9,7 @@ import java.util.Locale
 
 /**
  * All state lives in one SharedPreferences file, shared by the activity and the
- * accessibility service (same process). Per-day stats are keyed by date, so a
+ * tracker service (same process). Per-day stats are keyed by date, so a
  * new day starts at zero on its own with no reset job.
  *
  *   t|<date>|<pkg>   seconds in that app
