@@ -1,0 +1,56 @@
+name: Release
+
+# Push a tag like v1.1 (or run by hand with a tag name): builds both APKs,
+# runs the unit tests and publishes them as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v1.1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Test and build
+        run: ./gradlew --no-daemon testLiteDebugUnitTest testFullDebugUnitTest assembleRelease
+
+      - name: Name the APKs
+        run: |
+          cp app/build/outputs/apk/lite/release/app-lite-release.apk Focus.apk
+          cp app/build/outputs/apk/full/release/app-full-release.apk Focus-full.apk
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'NOTES'
+          **Focus.apk** — встановлюй цей. Рахує час у вибраних додатках і показує віконце з таймером. Не потребує Спеціальних можливостей, тому Google Play Захист його не блокує. Після встановлення: Focus → «Відкрити налаштування» → увімкни Focus у «Доступ до даних про використання», потім дозволь «Показ поверх інших додатків».
+
+          **Focus-full.apk** — те саме плюс лічильник Reels і Shorts. Використовує Спеціальні можливості, тому Play Захист блокує встановлення з файлу: став через `adb install Focus-full.apk`.
+
+          Якщо стоїть попередня версія Focus — спершу видали її (інший підпис).
+          NOTES
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" Focus.apk Focus-full.apk --clobber
+          else
+            gh release create "$TAG" Focus.apk Focus-full.apk \
+              --title "Focus $TAG" --notes-file notes.md --target "$GITHUB_SHA"
+          fi
