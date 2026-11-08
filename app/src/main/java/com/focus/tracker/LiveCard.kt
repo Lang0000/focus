@@ -3,17 +3,19 @@ package com.focus.tracker
 import kotlin.math.abs
 
 /**
- * What the Now Bar card shows: the app in front, a stopwatch the system runs on
- * its own, and the Reels/Shorts count where the app has one.
+ * What the live card shows: the app in front, two stopwatches the system runs
+ * on its own — today's time in this app and today's time in all tracked apps —
+ * and the Reels/Shorts count where the app has one.
  *
- * The stopwatch reads today's total for the app: [zeroMs] is the
- * elapsedRealtime at which it would have read 0:00. Because the system ticks it,
- * the card only needs reposting when the card itself changes — a new app, a new
- * count, or a re-anchored stopwatch — never once a second.
+ * Each stopwatch is stored as the elapsedRealtime at which it would have read
+ * 0:00 ([zeroMs], [totalZeroMs]). Because the system ticks them, the card only
+ * needs reposting when the card itself changes — a new app, a new count, or a
+ * re-anchored stopwatch — never once a second.
  */
 data class LiveCard(
     val pkg: String,
     val zeroMs: Long,
+    val totalZeroMs: Long,
     /** Reels/Shorts counted today; null for an app without a counter. */
     val count: Int?,
 ) {
@@ -25,24 +27,40 @@ data class LiveCard(
             else -> null
         }
 
+    /** Accent for the card and the status bar capsule: the app's own colour where we know it. */
+    val color: Int
+        get() = when (pkg) {
+            Store.INSTAGRAM -> INSTAGRAM_PINK
+            Store.YOUTUBE -> YOUTUBE_RED
+            else -> FOCUS_BLUE
+        }
+
     companion object {
-        /** How far the stopwatch may run from the stored time before it is reset to it. */
+        const val INSTAGRAM_PINK = 0xFFE1306C.toInt()
+        const val YOUTUBE_RED = 0xFFFF0033.toInt()
+        const val FOCUS_BLUE = 0xFF8FA8FF.toInt()
+
+        /** How far a stopwatch may run from the stored time before it is reset to it. */
         const val DRIFT_MS = 3000L
 
+        /** The card for [pkg] now, keeping [prev]'s stopwatches where they still agree. */
+        fun next(
+            prev: LiveCard?, pkg: String, secondsToday: Int, totalToday: Int, nowMs: Long, count: Int?,
+        ): LiveCard = LiveCard(
+            pkg = pkg,
+            zeroMs = anchor(prev?.zeroMs, secondsToday, nowMs),
+            totalZeroMs = anchor(prev?.totalZeroMs, totalToday, nowMs),
+            count = count,
+        )
+
         /**
-         * The card for [pkg] now. Keeps [prev]'s stopwatch while it still agrees
-         * with [secondsToday] to within [DRIFT_MS]; otherwise starts it at the
-         * stored total. That one rule covers an app switch (another app's total),
-         * missed time, and midnight's reset to 0.
+         * Keep the [prev] zero point while it agrees with [seconds] to within
+         * [DRIFT_MS]; otherwise start the stopwatch at [seconds]. That one rule
+         * covers an app switch (another app's total), missed time, and midnight.
          */
-        fun next(prev: LiveCard?, pkg: String, secondsToday: Int, nowMs: Long, count: Int?): LiveCard {
-            val anchor = nowMs - secondsToday * 1000L
-            val zero = if (prev != null && abs(prev.zeroMs - anchor) <= DRIFT_MS) {
-                prev.zeroMs
-            } else {
-                anchor
-            }
-            return LiveCard(pkg, zero, count)
+        private fun anchor(prev: Long?, seconds: Int, nowMs: Long): Long {
+            val fresh = nowMs - seconds * 1000L
+            return if (prev != null && abs(prev - fresh) <= DRIFT_MS) prev else fresh
         }
     }
 }
