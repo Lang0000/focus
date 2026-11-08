@@ -8,8 +8,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
@@ -39,7 +37,7 @@ class NowBar(
     /** Whether [shown] was posted with One UI's all-apps option on (no automation extra). */
     private var shownAllApps = false
     private var channelMade = false
-    private val iconCache = HashMap<String, Icon?>()
+    private val icons = AppIcons(ctx)
 
     fun show(pkg: String) {
         if (Build.VERSION.SDK_INT < 37) return
@@ -82,7 +80,10 @@ class NowBar(
             style.addMetric(Notification.Metric(Notification.Metric.FixedInt(it), card.countLabel ?: ""))
         }
         val b = Notification.Builder(ctx, CHANNEL)
-            .setSmallIcon(appIcon(card.pkg) ?: Icon.createWithResource(ctx, R.drawable.ic_stat))
+            // Capsule and expanded card: the app's one-colour glyph (see AppIcons).
+            .setSmallIcon(icons.tray(card.pkg) ?: icons.full(card.pkg) ?: Icon.createWithResource(ctx, R.drawable.ic_stat))
+            // Now Bar (lock screen) prefers the large icon: the app in colour.
+            .setLargeIcon(icons.full(card.pkg))
             .setContentTitle(label)
             .setColor(card.color)
             .setShowWhen(false)
@@ -106,17 +107,6 @@ class NowBar(
         label,
     )
 
-    /** The tracked app's own icon, so the capsule and the card show YouTube, not Focus. */
-    private fun appIcon(pkg: String): Icon? = iconCache.getOrPut(pkg) {
-        runCatching {
-            val d = ctx.packageManager.getApplicationIcon(pkg)
-            val size = ctx.dp(48)
-            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-            d.setBounds(0, 0, size, size)
-            d.draw(Canvas(bmp))
-            Icon.createWithBitmap(bmp)
-        }.getOrNull()
-    }
 
     private fun makeChannel() {
         if (channelMade) return
