@@ -254,6 +254,14 @@
                 android:textSize="15sp" />
 
             <Switch
+                android:id="@+id/nowBar"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="Таймер у Now Bar і рядку стану"
+                android:textColor="@color/text"
+                android:textSize="15sp" />
+
+            <Switch
                 android:id="@+id/countReels"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"

@@ -53,6 +53,9 @@ object Store {
         prefs(c).edit().putStringSet(APPS, HashSet(apps)).apply()
 
     fun overlayOn(c: Context) = prefs(c).getBoolean(OVERLAY, true)
+
+    fun nowBarOn(c: Context) = prefs(c).getBoolean("nowBar", true)
+    fun setNowBarOn(c: Context, on: Boolean) = prefs(c).edit().putBoolean("nowBar", on).apply()
     fun setOverlayOn(c: Context, on: Boolean) = prefs(c).edit().putBoolean(OVERLAY, on).apply()
 
     fun countReels(c: Context) = prefs(c).getBoolean(COUNT_REELS, true)

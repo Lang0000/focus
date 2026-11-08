@@ -34,7 +34,7 @@ class UsageService : Service() {
     private lateinit var usage: UsageStatsManager
     private lateinit var power: PowerManager
     private lateinit var keyguard: KeyguardManager
-    private lateinit var overlay: Overlay
+    private lateinit var screen: Screen
 
     private val front = Front()
     private var readTo = 0L
@@ -54,7 +54,7 @@ class UsageService : Service() {
         usage = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         power = getSystemService(Context.POWER_SERVICE) as PowerManager
         keyguard = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        overlay = Overlay(this, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+        screen = Screen(this, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, canDraw = { Settings.canDrawOverlays(this) })
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -70,7 +70,7 @@ class UsageService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        overlay.remove()
+        screen.remove()
         super.onDestroy()
     }
 
@@ -112,19 +112,18 @@ class UsageService : Service() {
     }
 
     private fun tick() {
-        overlay.applyReset()
         readEvents()
         val fg = front.pkg?.takeIf {
             power.isInteractive && !keyguard.isKeyguardLocked && it in Store.apps(this)
         }
         if (fg == null) {
             clock.pause()
-            overlay.hide()
+            screen.hide()
             return
         }
         val sec = clock.tick(SystemClock.elapsedRealtime())
         if (sec > 0) Store.addSeconds(this, fg, sec)
-        if (Store.overlayOn(this) && Settings.canDrawOverlays(this)) overlay.show(fg) else overlay.hide()
+        screen.show(fg)
     }
 
     companion object {

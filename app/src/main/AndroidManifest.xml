@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Now Bar card: a Live Update (Android 16+) needs notifications and the
+         non-runtime permission to request promotion. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />

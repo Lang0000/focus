@@ -40,7 +40,7 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
 
         findViewById<View>(R.id.enable).setOnClickListener {
-            val step = Setup.next(this) ?: return@setOnClickListener
+            val step = nextStep() ?: return@setOnClickListener
             if (step.intents.none { runCatching { startActivity(it) }.isSuccess }) {
                 Toast.makeText(this, "Не вдалося відкрити налаштування", Toast.LENGTH_SHORT).show()
             }
@@ -57,6 +57,14 @@ class MainActivity : Activity() {
             isChecked = Store.overlayOn(this@MainActivity)
             setOnCheckedChangeListener { _, on ->
                 Store.setOverlayOn(this@MainActivity, on)
+                render()
+            }
+        }
+        findViewById<Switch>(R.id.nowBar).apply {
+            isChecked = Store.nowBarOn(this@MainActivity)
+            visibility = if (NowBar.SUPPORTED) View.VISIBLE else View.GONE
+            setOnCheckedChangeListener { _, on ->
+                Store.setNowBarOn(this@MainActivity, on)
                 render()
             }
         }
@@ -111,10 +119,13 @@ class MainActivity : Activity() {
         renderApps(apps, selected)
     }
 
+    /** The next thing to switch on: the tracker's own permissions first, then the Now Bar's. */
+    private fun nextStep(): Step? = Setup.next(this) ?: NowBar.step(this)
+
     private var shownStep: String? = null
 
     private fun renderSetup() {
-        val step = Setup.next(this)
+        val step = nextStep()
         findViewById<View>(R.id.setup).visibility = if (step == null) View.GONE else View.VISIBLE
         if (step == null) {
             if (shownStep != null) Setup.start(this) // a permission was just granted

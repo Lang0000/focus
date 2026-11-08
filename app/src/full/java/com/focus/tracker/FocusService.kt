@@ -28,7 +28,7 @@ class FocusService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var power: PowerManager
     private lateinit var keyguard: KeyguardManager
-    private lateinit var overlay: Overlay
+    private lateinit var screen: Screen
 
     // Foreground tracking
     private var lastStatePkg: String? = null
@@ -51,7 +51,7 @@ class FocusService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        overlay = Overlay(this, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, ::badge)
+        screen = Screen(this, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, reels = ::reels)
         power = getSystemService(Context.POWER_SERVICE) as PowerManager
         keyguard = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         ignored = buildIgnored()
@@ -61,7 +61,7 @@ class FocusService : AccessibilityService() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        if (::overlay.isInitialized) overlay.remove()
+        if (::screen.isInitialized) screen.remove()
         super.onDestroy()
     }
 
@@ -95,7 +95,7 @@ class FocusService : AccessibilityService() {
             if (now - lastScanAt >= 250L) {
                 lastScanAt = now
                 runCatching { scan(pkg) }
-                overlay.update()
+                screen.update()
             }
         }
     }
@@ -121,16 +121,15 @@ class FocusService : AccessibilityService() {
     private val clock = SecondClock()
 
     private fun tick() {
-        overlay.applyReset()
         val fg = trackedForeground()
         if (fg == null) {
             clock.pause()
             surface = Surface.NONE
-            overlay.hide()
+            screen.hide()
             return
         }
         track(fg, clock.tick(SystemClock.elapsedRealtime()))
-        if (Store.overlayOn(this)) overlay.show(fg) else overlay.hide()
+        screen.show(fg)
     }
 
     /** The app in front, when it is one we time and the phone is in use. */
@@ -175,17 +174,14 @@ class FocusService : AccessibilityService() {
     }
 
     private fun refreshPill() {
-        val fg = if (Store.overlayOn(this)) trackedForeground() else null
-        if (fg != null) overlay.show(fg) else overlay.hide()
+        val fg = trackedForeground()
+        if (fg != null) screen.show(fg) else screen.hide()
     }
 
-    /** Today's Reels/Shorts count for the pill, coloured while the player is up. */
-    private fun badge(pkg: String): Badge? {
-        val count = when {
-            !countsReels(pkg) -> null
-            pkg == Store.INSTAGRAM -> Store.reels(this)
-            else -> Store.shorts(this)
-        }
-        return Pill.badge(pkg, count, onPlayer = surface != Surface.NONE && surfacePkg == pkg)
+    /** Today's Reels/Shorts count for [pkg], or null when it isn't counted. */
+    private fun reels(pkg: String): ReelCount? {
+        if (!countsReels(pkg)) return null
+        val count = if (pkg == Store.INSTAGRAM) Store.reels(this) else Store.shorts(this)
+        return ReelCount(count, onPlayer = surface != Surface.NONE && surfacePkg == pkg)
     }
 }
