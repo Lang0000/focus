@@ -8,6 +8,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -29,11 +32,16 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
     private val nm = ctx.getSystemService(NotificationManager::class.java)
     private var shown: LiveCard? = null
     private var channelMade = false
+    private val iconCache = HashMap<String, Icon?>()
 
     fun show(pkg: String) {
         if (Build.VERSION.SDK_INT < 37) return
         val next = LiveCard.next(
-            shown, pkg, Store.seconds(ctx, pkg), SystemClock.elapsedRealtime(), count(pkg)
+            shown, pkg,
+            secondsToday = Store.seconds(ctx, pkg),
+            totalToday = Store.dayTotal(ctx),
+            nowMs = SystemClock.elapsedRealtime(),
+            count = count(pkg),
         )
         if (next == shown) return
         shown = next
@@ -54,26 +62,23 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
     @TargetApi(37)
     private fun build(card: LiveCard): Notification {
         makeChannel()
-        val label = runCatching {
-            ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(card.pkg, 0)).toString()
-        }.getOrDefault(card.pkg)
+        val pm = ctx.packageManager
+        val info = runCatching { pm.getApplicationInfo(card.pkg, 0) }.getOrNull()
+        val label = info?.let { pm.getApplicationLabel(it).toString() } ?: card.pkg
         val open = PendingIntent.getActivity(
             ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
-        val style = Notification.MetricStyle().addMetric(
-            Notification.Metric(
-                Notification.Metric.TimeDifference.forStopwatch(
-                    card.zeroMs, Notification.Metric.TimeDifference.FORMAT_CHRONOMETER
-                ),
-                "Сьогодні"
-            )
-        )
+        val style = Notification.MetricStyle()
+            .addMetric(stopwatch(card.zeroMs, "Сьогодні"))
         card.count?.let {
             style.addMetric(Notification.Metric(Notification.Metric.FixedInt(it), card.countLabel ?: ""))
         }
-        return Notification.Builder(ctx, CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat)
+        style.addMetric(stopwatch(card.totalZeroMs, "Усього за день"))
+        val b = Notification.Builder(ctx, CHANNEL)
+            .setSmallIcon(appIcon(card.pkg) ?: Icon.createWithResource(ctx, R.drawable.ic_stat))
             .setContentTitle(label)
+            .setColor(card.color)
+            .setShowWhen(false)
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -81,8 +86,26 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setRequestPromotedOngoing(true)
             .setStyle(style.setCriticalMetric(0))
-            .addExtras(Bundle().apply { putBoolean(SAMSUNG_AUTOMATION, true) })
-            .build()
+        if (!liveForAllApps(ctx)) b.addExtras(Bundle().apply { putBoolean(SAMSUNG_AUTOMATION, true) })
+        return b.build()
+    }
+
+    @TargetApi(37)
+    private fun stopwatch(zeroMs: Long, label: String) = Notification.Metric(
+        Notification.Metric.TimeDifference.forStopwatch(zeroMs, Notification.Metric.TimeDifference.FORMAT_CHRONOMETER),
+        label,
+    )
+
+    /** The tracked app's own icon, so the capsule and the card show YouTube, not Focus. */
+    private fun appIcon(pkg: String): Icon? = iconCache.getOrPut(pkg) {
+        runCatching {
+            val d = ctx.packageManager.getApplicationIcon(pkg)
+            val size = ctx.dp(48)
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            d.setBounds(0, 0, size, size)
+            d.draw(Canvas(bmp))
+            Icon.createWithBitmap(bmp)
+        }.getOrNull()
     }
 
     private fun makeChannel() {
@@ -110,10 +133,24 @@ class NowBar(private val ctx: Context, private val count: (String) -> Int?) {
          * that already passes Android's promotion checks through. Do NOT also set
          * android.ongoingActivityNoti.style: that takes Samsung's private-card
          * path and cancels it. Side effect seen: the expanded capsule's header
-         * reads "Gemini Intelligence" instead of the app name. Ignored elsewhere.
+         * reads "Gemini Intelligence" instead of the app name: in SystemUI this is
+         * the path for Gemini's automations. Used only while [liveForAllApps] is off.
          * Source: github.com/tigerduck-app/tigerduck-app-android/pull/126
          */
         private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
+
+        /**
+         * One UI's developer option "Live notifications for all apps" (Developer
+         * options), read by SystemUI as Settings.Secure enable_notification_nowbar_test.
+         * When it is on, the allowlist is off and the card needs no
+         * [SAMSUNG_AUTOMATION] - so it shows under Focus's own name.
+         * False when the key is missing or unreadable (non-Samsung phones).
+         */
+        private const val SAMSUNG_ALL_APPS_LIVE = "enable_notification_nowbar_test"
+
+        fun liveForAllApps(c: Context): Boolean = runCatching {
+            Settings.Secure.getInt(c.contentResolver, SAMSUNG_ALL_APPS_LIVE, 0) == 1
+        }.getOrDefault(false)
         val SUPPORTED = Build.VERSION.SDK_INT >= 37
 
         /** What the user still has to allow for the card to reach the Now Bar, if anything. */
