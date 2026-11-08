@@ -32,7 +32,7 @@
             android:textColor="@color/dim"
             android:textSize="14sp" />
 
-        <!-- Shown until the accessibility service is on -->
+        <!-- Shown until the next setup step (Setup.next) is done -->
         <LinearLayout
             android:id="@+id/setup"
             android:layout_width="match_parent"
@@ -43,19 +43,19 @@
             android:padding="18dp">
 
             <TextView
+                android:id="@+id/setupTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Увімкни Focus"
                 android:textColor="@color/text"
                 android:textSize="17sp"
                 android:fontFamily="sans-serif-medium" />
 
             <TextView
+                android:id="@+id/setupBody"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:lineSpacingExtra="3dp"
-                android:text="Щоб рахувати час і показувати віконце, увімкни службу «Focus» у Спеціальних можливостях.\n\nЯкщо перемикач сірий: Налаштування → Додатки → Focus → ⋮ → «Дозволити обмежені налаштування», і спробуй ще раз."
                 android:textColor="@color/dim"
                 android:textSize="14sp" />
 
@@ -118,8 +118,9 @@
                 android:orientation="horizontal" />
         </LinearLayout>
 
-        <!-- Reels / Shorts -->
+        <!-- Reels / Shorts (full build only) -->
         <LinearLayout
+            android:id="@+id/reelsRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"

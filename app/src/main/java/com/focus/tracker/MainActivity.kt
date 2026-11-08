@@ -1,7 +1,6 @@
 package com.focus.tracker
 
 import android.app.Activity
-import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -41,7 +40,10 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
 
         findViewById<View>(R.id.enable).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            val step = Setup.next(this) ?: return@setOnClickListener
+            if (step.intents.none { runCatching { startActivity(it) }.isSuccess }) {
+                Toast.makeText(this, "Не вдалося відкрити налаштування", Toast.LENGTH_SHORT).show()
+            }
         }
         findViewById<View>(R.id.appInfo).setOnClickListener {
             startActivity(
@@ -53,11 +55,18 @@ class MainActivity : Activity() {
         }
         findViewById<Switch>(R.id.overlay).apply {
             isChecked = Store.overlayOn(this@MainActivity)
-            setOnCheckedChangeListener { _, on -> Store.setOverlayOn(this@MainActivity, on) }
+            setOnCheckedChangeListener { _, on ->
+                Store.setOverlayOn(this@MainActivity, on)
+                render()
+            }
         }
         findViewById<Switch>(R.id.countReels).apply {
             isChecked = Store.countReels(this@MainActivity)
             setOnCheckedChangeListener { _, on -> Store.setCountReels(this@MainActivity, on) }
+        }
+        if (!Setup.REELS) {
+            findViewById<View>(R.id.reelsRow).visibility = View.GONE
+            findViewById<View>(R.id.countReels).visibility = View.GONE
         }
         findViewById<View>(R.id.resetPos).setOnClickListener {
             Store.resetPillPos(this)
@@ -67,6 +76,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        Setup.start(this)
         handler.post(refresher)
     }
 
@@ -75,20 +85,6 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
-    private fun serviceEnabled(): Boolean {
-        val enabled = Settings.Secure.getString(
-            contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        ) ?: return false
-        val me = ComponentName(this, FocusService::class.java)
-        val splitter = TextUtils.SimpleStringSplitter(':')
-        splitter.setString(enabled)
-        for (s in splitter) {
-            if (ComponentName.unflattenFromString(s) == me) return true
-        }
-        return false
-    }
-
-
     private fun label(pkg: String): String = labelCache.getOrPut(pkg) {
         runCatching {
             packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
@@ -96,7 +92,7 @@ class MainActivity : Activity() {
     }
 
     private fun render() {
-        findViewById<View>(R.id.setup).visibility = if (serviceEnabled()) View.GONE else View.VISIBLE
+        renderSetup()
 
         val date = SimpleDateFormat("EEEE, d MMMM", uk).format(Calendar.getInstance().time)
         findViewById<TextView>(R.id.date).text = date.replaceFirstChar { it.titlecase(uk) }
@@ -113,6 +109,23 @@ class MainActivity : Activity() {
 
         renderWeek(selected)
         renderApps(apps, selected)
+    }
+
+    private var shownStep: String? = null
+
+    private fun renderSetup() {
+        val step = Setup.next(this)
+        findViewById<View>(R.id.setup).visibility = if (step == null) View.GONE else View.VISIBLE
+        if (step == null) {
+            if (shownStep != null) Setup.start(this) // a permission was just granted
+            shownStep = null
+            return
+        }
+        if (shownStep == step.title) return
+        shownStep = step.title
+        findViewById<TextView>(R.id.setupTitle).text = step.title
+        findViewById<TextView>(R.id.setupBody).text = step.body
+        findViewById<View>(R.id.appInfo).visibility = if (step.appInfo) View.VISIBLE else View.GONE
     }
 
     private fun renderWeek(selected: Set<String>) {
