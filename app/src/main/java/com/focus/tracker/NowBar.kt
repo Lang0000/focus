@@ -93,7 +93,10 @@ class NowBar(
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setRequestPromotedOngoing(true)
             .setStyle(style.setCriticalMetric(0))
-        if (!shownAllApps) b.addExtras(Bundle().apply { putBoolean(SAMSUNG_AUTOMATION, true) })
+        b.addExtras(Bundle().apply {
+            putBoolean(SAMSUNG_SMALL_ICON, true)
+            if (!shownAllApps) putBoolean(SAMSUNG_AUTOMATION, true)
+        })
         return b.build()
     }
 
@@ -149,6 +152,13 @@ class NowBar(
          * Source: github.com/tigerduck-app/tigerduck-app-android/pull/126
          */
         private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
+
+        /**
+         * One UI's expanded capsule shows the posting app's launcher icon (Focus)
+         * unless this extra asks for the notification's small icon, which here is
+         * the tracked app's icon. From OngoingActivityLayoutUtil.setOngoingNotificationIcon.
+         */
+        private const val SAMSUNG_SMALL_ICON = "android.showSmallIcon"
 
         /**
          * One UI's developer option "Live notifications for all apps" (Developer
