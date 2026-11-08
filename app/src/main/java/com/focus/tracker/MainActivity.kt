@@ -115,7 +115,7 @@ class MainActivity : Activity() {
         findViewById<TextView>(R.id.shorts).text = Store.shorts(this).toString()
         findViewById<TextView>(R.id.shortsTime).text = Format.words(Store.shortSec(this))
 
-        renderWeek(selected)
+        renderWeek()
         renderApps(apps, selected)
     }
 
@@ -139,11 +139,11 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.appInfo).visibility = if (step.appInfo) View.VISIBLE else View.GONE
     }
 
-    private fun renderWeek(selected: Set<String>) {
+    private fun renderWeek() {
         val week = findViewById<LinearLayout>(R.id.week)
         val totals = (6 downTo 0).map { off ->
             val d = Store.day(off)
-            Store.dayApps(this, d).filter { it.first in selected }.sumOf { it.second }
+            Store.dayTotal(this, d)
         }
         val max = (totals.maxOrNull() ?: 0).coerceAtLeast(60)
         val dayFmt = SimpleDateFormat("EE", uk)

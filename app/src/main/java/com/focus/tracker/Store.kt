@@ -97,7 +97,11 @@ object Store {
         }.sortedByDescending { it.second }
     }
 
-    fun dayTotal(c: Context, date: String = today()) = dayApps(c, date).sumOf { it.second }
+    /** Seconds in the apps the user tracks on [date] (the dashboard total and the card's day stopwatch). */
+    fun dayTotal(c: Context, date: String = today()): Int {
+        val tracked = apps(c)
+        return dayApps(c, date).filter { it.first in tracked }.sumOf { it.second }
+    }
 
     fun addReel(c: Context) = inc(c, "reels|${today()}")
     fun addShort(c: Context) = inc(c, "shorts|${today()}")
