@@ -88,9 +88,12 @@ class AppsActivity : Activity() {
                 .map { it.activityInfo.packageName }
                 .distinct()
                 .filter { it != packageName }
-                .map { pkg ->
-                    val info = pm.getApplicationInfo(pkg, 0)
-                    App(pkg, pm.getApplicationLabel(info).toString(), runCatching { pm.getApplicationIcon(pkg) }.getOrNull())
+                .mapNotNull { pkg ->
+                    // An app can be uninstalled while we list; skip it rather than crash.
+                    runCatching {
+                        val info = pm.getApplicationInfo(pkg, 0)
+                        App(pkg, pm.getApplicationLabel(info).toString(), pm.getApplicationIcon(info))
+                    }.getOrNull()
                 }
                 // Picked apps first, then by name.
                 .sortedWith(compareBy<App>({ it.pkg !in selected }, { it.label.lowercase() }))
