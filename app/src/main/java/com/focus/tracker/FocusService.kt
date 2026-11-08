@@ -236,21 +236,17 @@ class FocusService : AccessibilityService() {
         if (pill == null) return
         pillTime?.text = Format.clock(Store.seconds(this, pkg))
         val count = when {
-            !Store.countReels(this) -> -1
+            !countsReels(pkg) -> null
             pkg == Store.INSTAGRAM -> Store.reels(this)
-            pkg == Store.YOUTUBE -> Store.shorts(this)
-            else -> -1
+            else -> Store.shorts(this)
         }
-        val showCount = count > 0 || (count == 0 && surface != Surface.NONE && surfacePkg == pkg)
-        pillSep?.visibility = if (showCount) View.VISIBLE else View.GONE
-        pillCount?.visibility = if (showCount) View.VISIBLE else View.GONE
-        if (showCount) {
-            pillCount?.text = "▶ $count"
-            val live = surface != Surface.NONE && surfacePkg == pkg
-            pillCount?.setTextColor(
-                if (live) Color.parseColor(if (pkg == Store.INSTAGRAM) "#FF7A90" else "#FF6A55")
-                else Color.parseColor("#B8BCC4")
-            )
+        val badge = Pill.badge(pkg, count, onPlayer = surface != Surface.NONE && surfacePkg == pkg)
+        val vis = if (badge != null) View.VISIBLE else View.GONE
+        pillSep?.visibility = vis
+        pillCount?.visibility = vis
+        if (badge != null) {
+            pillCount?.text = badge.text
+            pillCount?.setTextColor(badge.color)
         }
     }
 
