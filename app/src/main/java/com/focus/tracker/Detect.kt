@@ -108,15 +108,21 @@ object Detect {
  */
 class Dedup {
     private var date: String? = null
-    private var lastKey: String? = null
-    private val recent = ArrayDeque<String>()
+    private val recent = ArrayDeque<String>() // newest first
 
-    /** True when [key] is a new item that should be counted. */
+    /**
+     * True when [key] is a new item that should be counted. A key that matches
+     * one already seen replaces it when it is longer, so an item first seen
+     * half-loaded (author only) is remembered by its full key and doesn't
+     * swallow the next item from the same author.
+     */
     fun isNew(key: String, today: String): Boolean {
-        if (date != today) { date = today; recent.clear(); lastKey = null }
-        lastKey?.let { if (overlap(key, it) >= SAME) { lastKey = key; return false } }
-        lastKey = key
-        if (recent.any { overlap(key, it) >= SAME }) return false
+        if (date != today) { date = today; recent.clear() }
+        val i = recent.indexOfFirst { overlap(key, it) >= SAME }
+        if (i >= 0) {
+            if (key.length > recent[i].length) recent[i] = key
+            return false
+        }
         recent.addFirst(key)
         while (recent.size > MEMORY) recent.removeLast()
         return true

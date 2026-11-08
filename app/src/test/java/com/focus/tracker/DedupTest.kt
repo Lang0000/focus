@@ -37,4 +37,11 @@ class DedupTest {
         d.isNew("anna|sunset at the beach", day)
         assertTrue(d.isNew("anna|sunset at the beach", "2026-11-09"))
     }
+
+    @Test fun anAuthorOnlyKeyDoesNotSwallowThatAuthorsNextReel() {
+        val d = Dedup()
+        assertTrue(d.isNew("anna", day))                       // caption still loading
+        assertFalse(d.isNew("anna|sunset at the beach", day))  // same reel, now loaded
+        assertTrue(d.isNew("anna|my new car review", day))     // her next reel
+    }
 }

@@ -15,7 +15,7 @@ class SecondClock {
 
     /** Seconds that passed since the previous tick, given the time now in ms. */
     fun tick(nowMs: Long): Int {
-        if (lastMs < 0) { lastMs = nowMs; return 0 }
+        if (lastMs < 0) lastMs = nowMs // first tick only starts the clock
         val step = (nowMs - lastMs).coerceIn(0L, MAX_STEP_SEC * 1000L)
         lastMs = nowMs
         val total = leftoverMs + step

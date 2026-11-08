@@ -14,6 +14,7 @@ class FormatTest {
     @Test fun words() {
         assertEquals("0 с", Format.words(0))
         assertEquals("40 с", Format.words(40))
+        assertEquals("1 хв 5 с", Format.words(65))
         assertEquals("12 хв 3 с", Format.words(723))
         assertEquals("1 год 5 хв", Format.words(3900))
     }
